@@ -1829,15 +1829,61 @@ body {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Printer Setup
           </h3>
-          <p class="text-muted mt4" style="margin-bottom:12px;">Star Micronics TSP143IIILAN — WebPRNT over LAN. Enter the printer's local IP address.</p>
+
+          <!-- Connection Mode Toggle -->
           <div class="form-group">
-            <label class="form-label" for="s-printer-ip">Printer IP Address</label>
-            <input class="form-input" id="s-printer-ip" type="text" placeholder="192.168.1.100">
+            <label class="form-label">Connection Mode</label>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:0.82rem;transition:all 0.12s;" id="mode-lan-label">
+                <input type="radio" name="printer-mode" value="lan" id="mode-lan" style="accent-color:var(--accent);" onchange="onPrinterModeChange()" checked>
+                <div>
+                  <div style="font-weight:600;">LAN / Ethernet</div>
+                  <div style="font-size:0.7rem;color:var(--text-muted);">TSP143IIILAN via IP</div>
+                </div>
+              </label>
+              <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:0.82rem;transition:all 0.12s;" id="mode-bt-label">
+                <input type="radio" name="printer-mode" value="webprnt" id="mode-bt" style="accent-color:var(--accent);" onchange="onPrinterModeChange()">
+                <div>
+                  <div style="font-weight:600;">Star webPRNT App</div>
+                  <div style="font-size:0.7rem;color:var(--text-muted);">TSP100IIIBI via Bluetooth</div>
+                </div>
+              </label>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="s-printer-port">Port (default: 80)</label>
-            <input class="form-input" id="s-printer-port" type="number" placeholder="80" value="80" min="1" max="65535">
+
+          <!-- LAN fields -->
+          <div id="lan-fields">
+            <p class="text-muted" style="margin-bottom:10px;font-size:0.75rem;">Enter the printer&apos;s local IP address on your network.</p>
+            <div class="form-group">
+              <label class="form-label" for="s-printer-ip">Printer IP Address</label>
+              <input class="form-input" id="s-printer-ip" type="text" placeholder="192.168.1.100">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="s-printer-port">Port (default: 80)</label>
+              <input class="form-input" id="s-printer-port" type="number" placeholder="80" value="80" min="1" max="65535">
+            </div>
           </div>
+
+          <!-- webPRNT Browser App fields -->
+          <div id="webprnt-fields" style="display:none;">
+            <div style="background:var(--accent-light);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:0.78rem;">
+              <div style="font-weight:700;color:var(--accent);margin-bottom:6px;">Setup Instructions</div>
+              <ol style="padding-left:16px;color:var(--text-muted);line-height:1.8;">
+                <li>Download <strong>"Star webPRNT Browser"</strong> from the App Store</li>
+                <li>Pair your TSP100IIIBI via iPhone <strong>Settings → Bluetooth</strong></li>
+                <li>Open the Star webPRNT Browser app</li>
+                <li>Go to the app’s Settings and select your printer</li>
+                <li>Enter your POS URL: <strong>https://jaj1605.github.io/pos</strong></li>
+                <li>Use the POS inside the Star app — printing will route through Bluetooth automatically</li>
+              </ol>
+            </div>
+            <p class="text-muted" style="font-size:0.75rem;">The Star webPRNT Browser app provides its own local server at <code style="background:var(--bg);padding:1px 5px;border-radius:3px;">localhost:8080</code>. Your POS will use that automatically when this mode is selected.</p>
+            <div class="form-group" style="margin-top:10px;">
+              <label class="form-label" for="s-printer-port-bt">App Port (default: 8080)</label>
+              <input class="form-input" id="s-printer-port-bt" type="number" placeholder="8080" value="8080" min="1" max="65535" style="max-width:120px;">
+            </div>
+          </div>
+
           <div class="printer-status">
             <div class="printer-dot" id="printer-dot"></div>
             <span id="printer-status-text">Not configured</span>
@@ -2268,7 +2314,8 @@ let settings = {
   phone: '215-492-9773',
   footer: 'Thank you for dining with us! Open 7 Days 3:30PM - 1:00AM',
   printerIp: '',
-  printerPort: '80'
+  printerPort: '80',
+  printerMode: 'lan' // 'lan' or 'webprnt'
 };
 let currentCustomizeItem = null;
 let selectedCategory = null;
@@ -3078,15 +3125,16 @@ async function printOrder() {
   const customerName = document.getElementById('customer-name').value.trim();
   const customerPhone = document.getElementById('customer-phone').value.trim();
   const receiptText = generateReceiptText(orderNum, customerName, customerPhone);
-  const printerIp = settings.printerIp;
-  const printerPort = settings.printerPort || '80';
+  const mode = settings.printerMode || 'lan';
+  const printerIp = mode === 'webprnt' ? 'localhost' : settings.printerIp;
+  const printerPort = mode === 'webprnt' ? (settings.printerPort || '8080') : (settings.printerPort || '80');
 
-  if (printerIp) {
+  if (printerIp && (mode === 'webprnt' || settings.printerIp)) {
     const xmlPayload = buildWebPRNTPayload(receiptText, true);
     const sent = await sendToStarPrinter(printerIp, printerPort, xmlPayload);
     if (!sent) browserPrint(receiptText);
   } else {
-    showToast('No printer IP set — using browser print', 'warning');
+    showToast('No printer configured — using browser print', 'warning');
     browserPrint(receiptText);
   }
 
@@ -3194,11 +3242,15 @@ function browserPrint(receiptText) {
 // TEST PRINT
 // ===========================
 async function testPrint() {
-  const ip = document.getElementById('s-printer-ip').value.trim();
-  const port = document.getElementById('s-printer-port').value.trim() || '80';
-  if (!ip) {
-    showToast('Enter a printer IP address first', 'warning');
-    return;
+  const mode = document.querySelector('input[name="printer-mode"]:checked')?.value || 'lan';
+  let ip, port;
+  if (mode === 'webprnt') {
+    ip = 'localhost';
+    port = document.getElementById('s-printer-port-bt').value.trim() || '8080';
+  } else {
+    ip = document.getElementById('s-printer-ip').value.trim();
+    port = document.getElementById('s-printer-port').value.trim() || '80';
+    if (!ip) { showToast('Enter a printer IP address first', 'warning'); return; }
   }
 
   const dot = document.getElementById('printer-dot');
@@ -3281,14 +3333,22 @@ function loadSettingsForm() {
   document.getElementById('s-address').value = settings.address || '';
   document.getElementById('s-phone').value = settings.phone || '';
   document.getElementById('s-footer').value = settings.footer || '';
-  document.getElementById('s-printer-ip').value = settings.printerIp || '';
-  document.getElementById('s-printer-port').value = settings.printerPort || '80';
-  document.getElementById('restaurant-logo').textContent = settings.name || 'Restaurant POS';
+  document.getElementById('s-printer-ip').value = settings.printerMode === 'lan' ? (settings.printerIp || '') : '';
+  document.getElementById('s-printer-port').value = settings.printerMode === 'lan' ? (settings.printerPort || '80') : '80';
+  document.getElementById('s-printer-port-bt').value = settings.printerMode === 'webprnt' ? (settings.printerPort || '8080') : '8080';
+  document.getElementById('restaurant-logo').textContent = settings.name || 'Lucky Star';
+
+  // Restore printer mode radio
+  const mode = settings.printerMode || 'lan';
+  const modeRadio = document.querySelector(`input[name="printer-mode"][value="${mode}"]`);
+  if (modeRadio) { modeRadio.checked = true; onPrinterModeChange(); }
 
   const dot = document.getElementById('printer-dot');
   const statusText = document.getElementById('printer-status-text');
-  if (settings.printerIp) {
-    statusText.textContent = `Saved: ${settings.printerIp}:${settings.printerPort || 80}`;
+  if (settings.printerMode === 'webprnt') {
+    statusText.textContent = `Star webPRNT Browser mode (localhost:${settings.printerPort || 8080})`;
+  } else if (settings.printerIp) {
+    statusText.textContent = `LAN: ${settings.printerIp}:${settings.printerPort || 80}`;
   } else {
     statusText.textContent = 'Not configured';
   }
@@ -3304,9 +3364,27 @@ function saveRestaurantInfo() {
   showToast('Restaurant info saved', 'success');
 }
 
+function onPrinterModeChange() {
+  const mode = document.querySelector('input[name="printer-mode"]:checked').value;
+  document.getElementById('lan-fields').style.display = mode === 'lan' ? '' : 'none';
+  document.getElementById('webprnt-fields').style.display = mode === 'webprnt' ? '' : 'none';
+  // Highlight selected mode
+  document.getElementById('mode-lan-label').style.borderColor = mode === 'lan' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('mode-lan-label').style.background = mode === 'lan' ? 'var(--accent-light)' : '';
+  document.getElementById('mode-bt-label').style.borderColor = mode === 'webprnt' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('mode-bt-label').style.background = mode === 'webprnt' ? 'var(--accent-light)' : '';
+}
+
 function savePrinterSettings() {
-  settings.printerIp = document.getElementById('s-printer-ip').value.trim();
-  settings.printerPort = document.getElementById('s-printer-port').value.trim() || '80';
+  const mode = document.querySelector('input[name="printer-mode"]:checked').value;
+  settings.printerMode = mode;
+  if (mode === 'lan') {
+    settings.printerIp = document.getElementById('s-printer-ip').value.trim();
+    settings.printerPort = document.getElementById('s-printer-port').value.trim() || '80';
+  } else {
+    settings.printerIp = 'localhost';
+    settings.printerPort = document.getElementById('s-printer-port-bt').value.trim() || '8080';
+  }
   saveSettings();
   loadSettingsForm();
   showToast('Printer settings saved', 'success');
