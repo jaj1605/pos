@@ -164,22 +164,90 @@ body {
 /* ===== ORDER TAB LAYOUT ===== */
 #tab-order {
   flex-direction: row;
+  position: relative;
 }
 #menu-area {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
   min-width: 0;
+  padding-bottom: 90px; /* space for the floating order button */
 }
+
+/* Slide-in order drawer */
 #order-sidebar {
+  position: fixed;
+  top: var(--topbar-h);
+  right: 0;
   width: var(--sidebar-w);
+  height: calc(100vh - var(--topbar-h));
   flex-shrink: 0;
   border-left: 1px solid var(--border);
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 200;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.28s ease;
+  box-shadow: none;
 }
+#order-sidebar.open {
+  transform: translateX(0);
+  box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+}
+
+/* Overlay behind the drawer */
+#order-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 199;
+  backdrop-filter: blur(1px);
+  animation: fadeIn 0.2s ease;
+}
+#order-overlay.visible { display: block; }
+
+/* Floating order button */
+#order-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 198;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  padding: 13px 20px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(1,105,111,0.4);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+#order-fab:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(1,105,111,0.5);
+}
+#order-fab:active { transform: translateY(0); }
+#order-fab .fab-count {
+  background: #fff;
+  color: var(--accent);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  min-width: 22px;
+  text-align: center;
+}
+#order-fab.hidden { display: none; }
 
 /* ===== MENU AREA ===== */
 .menu-search-bar {
@@ -1010,26 +1078,15 @@ body {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-  :root { --sidebar-w: 100%; }
-  #tab-order {
-    flex-direction: column;
-  }
-  #menu-area {
-    flex: none;
-    height: 55vh;
-    overflow-y: auto;
-  }
-  #order-sidebar {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid var(--border);
-    height: 45vh;
-  }
+  :root { --sidebar-w: 92vw; }
+  #tab-order { flex-direction: column; }
+  #menu-area { flex: 1; height: auto; overflow-y: auto; padding-bottom: 90px; }
   .settings-grid { grid-template-columns: 1fr; }
   .menu-editor-full { grid-column: 1; }
   #topbar nav button { padding: 5px 7px; font-size: 0.73rem; }
   #topbar .logo { font-size: 0.95rem; }
   #topbar .order-badge { font-size: 0.68rem; padding: 3px 7px; }
+  #order-fab { bottom: 16px; right: 16px; padding: 11px 16px; font-size: 0.84rem; }
 }
 
 /* ===== SCROLLBAR ===== */
@@ -1604,6 +1661,16 @@ body {
       <div id="menu-content"></div>
     </div>
 
+    <!-- Overlay -->
+    <div id="order-overlay" onclick="closeOrderDrawer()" aria-hidden="true"></div>
+
+    <!-- Floating Order Button -->
+    <button id="order-fab" class="hidden" onclick="openOrderDrawer()" aria-label="View current order">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      View Order
+      <span class="fab-count" id="fab-count">0</span>
+    </button>
+
     <!-- Order Sidebar -->
     <aside id="order-sidebar" aria-label="Current order">
       <div class="sidebar-header">
@@ -1611,7 +1678,12 @@ body {
           Current Order
           <span class="item-count-badge" id="item-count">0</span>
         </h2>
-        <button class="clear-btn" onclick="clearOrder()" aria-label="Clear all items">Clear</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="clear-btn" onclick="clearOrder()" aria-label="Clear all items">Clear</button>
+          <button class="clear-btn" onclick="closeOrderDrawer()" aria-label="Close order panel" style="padding:4px 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <!-- Customer Info -->
       <div class="customer-strip">
@@ -2321,6 +2393,8 @@ function switchTab(tab) {
   btn.classList.add('active');
   btn.setAttribute('aria-selected', 'true');
 
+  // Close order drawer when switching tabs
+  closeOrderDrawer();
   if (tab === 'history') renderHistory();
   if (tab === 'analytics') { renderAnalytics(); renderTrendChart(); renderProductMix(); renderZReport(); }
   if (tab === 'menu') { renderMenuEditor(); renderCategoryManager(); renderAddonGroupsList(); }
@@ -2667,6 +2741,39 @@ function addCustomizedItem() {
 }
 
 // ===========================
+// ORDER DRAWER
+// ===========================
+function openOrderDrawer() {
+  document.getElementById('order-sidebar').classList.add('open');
+  document.getElementById('order-overlay').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOrderDrawer() {
+  document.getElementById('order-sidebar').classList.remove('open');
+  document.getElementById('order-overlay').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+function updateFAB(totalItems, subtotal) {
+  const fab = document.getElementById('order-fab');
+  const fabCount = document.getElementById('fab-count');
+  if (totalItems > 0) {
+    fab.classList.remove('hidden');
+    fabCount.textContent = totalItems;
+    fab.querySelector('span + span, .fab-label') // update label if needed
+    // Update the button text to show subtotal
+    fab.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      View Order · $${subtotal.toFixed(2)}
+      <span class="fab-count">${totalItems}</span>`;
+  } else {
+    fab.classList.add('hidden');
+    closeOrderDrawer();
+  }
+}
+
+// ===========================
 // ORDER MANAGEMENT
 // ===========================
 function addToOrder(item, size, addons, mods, groupOptions, qty, special) {
@@ -2691,7 +2798,7 @@ function addToOrder(item, size, addons, mods, groupOptions, qty, special) {
     lineTotal
   };
   order.push(entry);
-  renderOrder();
+  renderOrder(true); // auto-open drawer
 }
 
 function removeFromOrder(entryId) {
@@ -2721,7 +2828,7 @@ function getSubtotal() {
   return order.reduce((sum, e) => sum + e.lineTotal, 0);
 }
 
-function renderOrder() {
+function renderOrder(autoOpen = false) {
   const container = document.getElementById('order-items');
   const emptyState = document.getElementById('order-empty-state');
   const subtotal = getSubtotal();
@@ -2729,6 +2836,10 @@ function renderOrder() {
 
   document.getElementById('item-count').textContent = totalItems;
   document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+  updateFAB(totalItems, subtotal);
+
+  // Auto-open drawer when item added
+  if (autoOpen && totalItems > 0) openOrderDrawer();
 
   const hasItems = order.length > 0;
   document.getElementById('preview-btn').disabled = !hasItems;
@@ -2891,6 +3002,7 @@ async function printOrder() {
   // Clear customer fields for next order
   document.getElementById('customer-name').value = '';
   document.getElementById('customer-phone').value = '';
+  closeOrderDrawer();
   renderOrder();
   updateOrderNumBadge();
 }
