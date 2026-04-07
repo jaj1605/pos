@@ -3127,9 +3127,21 @@ async function printOrder() {
   const mode = settings.printerMode || 'lan';
 
   if (mode === 'webprnt') {
-    // Bluetooth via AirPrint — use browser print dialog directly
-    // The TSP100IIIBI appears as an AirPrint printer in iOS print dialog
-    browserPrint(receiptText);
+    // Bluetooth — call window.print() directly in the gesture chain
+    const el = document.getElementById('print-receipt');
+    el.textContent = receiptText;
+    closeOrderDrawer();
+    document.body.style.overflow = '';
+    window.print();
+    // Save order after print
+    saveOrderToHistory(orderNum, order, getSubtotal(), customerName, customerPhone);
+    incrementOrderNum();
+    order = [];
+    document.getElementById('customer-name').value = '';
+    document.getElementById('customer-phone').value = '';
+    renderOrder();
+    updateOrderNumBadge();
+    return;
   } else if (settings.printerIp) {
     // LAN mode — send via WebPRNT HTTP
     const xmlPayload = buildWebPRNTPayload(receiptText, true);
@@ -3233,11 +3245,10 @@ async function sendToStarPrinter(ip, port, xmlPayload) {
 function browserPrint(receiptText) {
   const el = document.getElementById('print-receipt');
   el.textContent = receiptText;
-  // Close drawer and restore body overflow before printing
   closeOrderDrawer();
   document.body.style.overflow = '';
-  // Small delay to let browser settle before print dialog
-  setTimeout(() => window.print(), 100);
+  // Call print directly — must be in same call stack as user gesture (button tap)
+  window.print();
 }
 
 // ===========================
@@ -3259,7 +3270,6 @@ async function testPrint() {
       '----------------------------------------',
       ''
     ].join('\n');
-    showToast('Select TSP100 in the print dialog', 'success');
     browserPrint(testText);
     return;
   }
