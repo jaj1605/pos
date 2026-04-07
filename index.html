@@ -197,6 +197,16 @@ body {
   transform: translateX(0);
   box-shadow: -4px 0 24px rgba(0,0,0,0.12);
 }
+#order-items {
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  padding: 10px;
+  min-height: 0;
+  /* Explicit max-height: sidebar - topbar - header - customer strip - footer */
+  max-height: calc(100vh - 60px - 53px - 53px - 130px);
+  display: block;
+}
 
 /* Overlay behind the drawer */
 #order-overlay {
@@ -461,11 +471,6 @@ body {
 }
 .clear-btn:hover { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
 
-#order-items {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-}
 .order-empty {
   display: flex;
   flex-direction: column;
@@ -484,11 +489,12 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 10px 10px;
   margin-bottom: 6px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
+  min-width: 0;
 }
 .order-line-info { flex: 1; min-width: 0; }
 .order-line-name {
@@ -986,19 +992,75 @@ body {
 .special-instructions textarea::placeholder { color: var(--text-subtle); }
 
 /* ===== RECEIPT MODAL ===== */
-.receipt-modal { max-width: 380px; }
+.receipt-modal { max-width: 420px; }
+
+/* Thermal paper simulator */
+.receipt-paper-wrap {
+  background: #f5f0e8;
+  border-radius: 2px 2px 0 0;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="dark"] .receipt-paper-wrap { background: #2a2520; }
+
+.receipt-paper-top {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, #e8e0d0 0px, #e8e0d0 3px, #f5f0e8 3px, #f5f0e8 6px);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+[data-theme="dark"] .receipt-paper-top {
+  background: repeating-linear-gradient(90deg, #221e1a 0px, #221e1a 3px, #2a2520 3px, #2a2520 6px);
+}
+
 .receipt-preview {
   font-family: 'Courier New', monospace;
-  font-size: 0.72rem;
+  font-size: 11px;
   white-space: pre;
-  line-height: 1.5;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 14px;
-  overflow-x: auto;
+  line-height: 1.55;
+  color: #1a1510;
+  background: transparent;
+  padding: 10px 16px 16px;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  letter-spacing: 0.01em;
 }
+[data-theme="dark"] .receipt-preview { color: #e8dfc8; }
+
+.receipt-paper-bottom {
+  height: 12px;
+  background: linear-gradient(to bottom, #f5f0e8, #ece5d5);
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="dark"] .receipt-paper-bottom {
+  background: linear-gradient(to bottom, #2a2520, #221e1a);
+}
+.receipt-paper-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: -5%;
+  width: 110%;
+  height: 12px;
+  background: var(--bg-card);
+  border-radius: 50%;
+}
+
+/* Receipt info bar */
+.receipt-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--accent-light);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+  font-size: 0.72rem;
+}
+.receipt-info-bar .rib-label { color: var(--text-muted); }
+.receipt-info-bar .rib-val { font-weight: 700; color: var(--accent); }
 
 /* ===== MENU ITEM ADD MODAL ===== */
 .add-item-modal { max-width: 560px; }
@@ -1064,14 +1126,22 @@ body {
 
 /* ===== PRINT STYLES ===== */
 @media print {
-  body > *:not(#print-receipt) { display: none !important; }
+  * { visibility: hidden !important; }
+  #print-receipt, #print-receipt * {
+    visibility: visible !important;
+  }
   #print-receipt {
     display: block !important;
-    font-family: 'Courier New', monospace;
-    font-size: 10pt;
-    width: 72mm;
-    margin: 0 auto;
-    white-space: pre;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 72mm !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 10pt !important;
+    white-space: pre !important;
+    color: #000 !important;
+    background: #fff !important;
+    z-index: 99999 !important;
   }
 }
 #print-receipt { display: none; }
@@ -1490,16 +1560,6 @@ body {
   overflow-x: auto;
   color: var(--text);
 }
-@media print {
-  body > *:not(#z-report-print-frame) { display: none !important; }
-  #z-report-print-frame {
-    display: block !important;
-    font-family: 'Courier New', monospace;
-    font-size: 10pt;
-    white-space: pre;
-    line-height: 1.6;
-  }
-}
 #z-report-print-frame { display: none; }
 
 /* ===== CATEGORY MANAGER ===== */
@@ -1665,7 +1725,7 @@ body {
     <div id="order-overlay" onclick="closeOrderDrawer()" aria-hidden="true"></div>
 
     <!-- Floating Order Button -->
-    <button id="order-fab" class="hidden" onclick="openOrderDrawer()" aria-label="View current order">
+    <button id="order-fab" class="hidden" onclick="openOrderDrawer(false)" aria-label="View current order">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       View Order
       <span class="fab-count" id="fab-count">0</span>
@@ -1691,16 +1751,7 @@ body {
         <input type="tel" id="customer-phone" placeholder="Phone (optional)" aria-label="Customer phone" maxlength="20" style="max-width:130px;">
       </div>
 
-      <div id="order-items" role="list" aria-label="Order items">
-        <div class="order-empty" id="order-empty-state">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <path d="M16 10a4 4 0 0 1-8 0"/>
-          </svg>
-          <p>No items yet.<br>Tap a menu item to add it.</p>
-        </div>
-      </div>
+      <div id="order-items" role="list" aria-label="Order items"></div>
       <div class="sidebar-footer">
         <div class="subtotal-row">
           <span class="subtotal-label">Subtotal</span>
@@ -2015,17 +2066,31 @@ body {
 <div class="modal-overlay hidden" id="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
   <div class="modal receipt-modal">
     <div class="modal-header">
-      <h3 id="receipt-modal-title">Receipt Preview</h3>
+      <div>
+        <h3 id="receipt-modal-title">Receipt Preview</h3>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">72mm · TSP143IIILAN format</div>
+      </div>
       <button class="modal-close" onclick="closeReceiptModal()" aria-label="Close">&times;</button>
     </div>
-    <div class="modal-body">
-      <div class="receipt-preview" id="receipt-preview-content" aria-label="Receipt preview"></div>
+    <!-- Info bar -->
+    <div class="receipt-info-bar">
+      <span><span class="rib-label">Items: </span><span class="rib-val" id="rp-item-count">0</span></span>
+      <span><span class="rib-label">Order: </span><span class="rib-val" id="rp-order-num">#0001</span></span>
+      <span><span class="rib-label">Total: </span><span class="rib-val" id="rp-total">$0.00</span></span>
+    </div>
+    <div class="modal-body" style="padding:16px;background:var(--bg);">
+      <!-- Thermal paper simulator -->
+      <div class="receipt-paper-wrap">
+        <div class="receipt-paper-top"></div>
+        <div class="receipt-preview" id="receipt-preview-content" aria-label="Receipt preview"></div>
+        <div class="receipt-paper-bottom"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:0;padding:9px 16px;" onclick="closeReceiptModal()">Close</button>
       <button class="btn btn-primary" style="flex:0;padding:9px 18px;" onclick="printOrder()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        Print
+        Confirm &amp; Print
       </button>
     </div>
   </div>
@@ -2743,13 +2808,23 @@ function addCustomizedItem() {
 // ===========================
 // ORDER DRAWER
 // ===========================
-function openOrderDrawer() {
+let _drawerAutoCloseTimer = null;
+
+function openOrderDrawer(autoClose = false) {
   document.getElementById('order-sidebar').classList.add('open');
   document.getElementById('order-overlay').classList.add('visible');
   document.body.style.overflow = 'hidden';
+  // If auto-close, close after 1.8s so user can keep browsing
+  if (autoClose) {
+    clearTimeout(_drawerAutoCloseTimer);
+    _drawerAutoCloseTimer = setTimeout(() => closeOrderDrawer(), 1800);
+  } else {
+    clearTimeout(_drawerAutoCloseTimer);
+  }
 }
 
 function closeOrderDrawer() {
+  clearTimeout(_drawerAutoCloseTimer);
   document.getElementById('order-sidebar').classList.remove('open');
   document.getElementById('order-overlay').classList.remove('visible');
   document.body.style.overflow = '';
@@ -2757,16 +2832,22 @@ function closeOrderDrawer() {
 
 function updateFAB(totalItems, subtotal) {
   const fab = document.getElementById('order-fab');
-  const fabCount = document.getElementById('fab-count');
+  if (!fab) return;
   if (totalItems > 0) {
     fab.classList.remove('hidden');
-    fabCount.textContent = totalItems;
-    fab.querySelector('span + span, .fab-label') // update label if needed
-    // Update the button text to show subtotal
-    fab.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      View Order · $${subtotal.toFixed(2)}
-      <span class="fab-count">${totalItems}</span>`;
+    // Update label span and count span without replacing innerHTML
+    let labelSpan = fab.querySelector('.fab-label');
+    let countSpan = fab.querySelector('.fab-count');
+    if (!labelSpan || !countSpan) {
+      // Build inner content once if missing
+      fab.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="fab-label">View Order · $${subtotal.toFixed(2)}</span>
+        <span class="fab-count" id="fab-count">${totalItems}</span>`;
+    } else {
+      labelSpan.textContent = `View Order · $${subtotal.toFixed(2)}`;
+      countSpan.textContent = totalItems;
+    }
   } else {
     fab.classList.add('hidden');
     closeOrderDrawer();
@@ -2830,7 +2911,6 @@ function getSubtotal() {
 
 function renderOrder(autoOpen = false) {
   const container = document.getElementById('order-items');
-  const emptyState = document.getElementById('order-empty-state');
   const subtotal = getSubtotal();
   const totalItems = order.reduce((s, e) => s + e.qty, 0);
 
@@ -2838,54 +2918,57 @@ function renderOrder(autoOpen = false) {
   document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
   updateFAB(totalItems, subtotal);
 
-  // Auto-open drawer when item added
-  if (autoOpen && totalItems > 0) openOrderDrawer();
+  // Auto-open drawer briefly when item added, then close so user can keep browsing
+  if (autoOpen && totalItems > 0) openOrderDrawer(true);
 
   const hasItems = order.length > 0;
   document.getElementById('preview-btn').disabled = !hasItems;
   document.getElementById('print-btn').disabled = !hasItems;
 
   if (!hasItems) {
-    emptyState.style.display = '';
-    // Remove all order lines but keep empty state
-    container.querySelectorAll('.order-line').forEach(el => el.remove());
+    container.innerHTML = `
+      <div class="order-empty" id="order-empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <p>No items yet.<br>Tap a menu item to add it.</p>
+      </div>`;
     return;
   }
-  emptyState.style.display = 'none';
 
-  // Rebuild order lines
-  container.querySelectorAll('.order-line').forEach(el => el.remove());
+  // Rebuild entire order list
+  // Debug: log each entry being rendered
+  console.log('[renderOrder] Rendering', order.length, 'items');
+  order.forEach((e,i) => console.log(`  [${i}] ${e.name} qty:${e.qty} $${e.lineTotal}`));
 
-  order.forEach(entry => {
+  container.innerHTML = order.map(entry => {
     const modList = [];
     if (entry.size) modList.push(entry.size);
     entry.addons.forEach((a, i) => modList.push(`${a} (+$${entry.addonPrices[i].toFixed(2)})`));
     entry.mods.forEach(m => modList.push(m));
     (entry.groupOptions || []).forEach(go => modList.push(`${go.groupName}: ${go.optName} (+$${go.price.toFixed(2)})`));
-
-    const el = document.createElement('div');
-    el.className = 'order-line';
-    el.setAttribute('role', 'listitem');
-    el.dataset.entryId = entry.id;
-    el.innerHTML = `
-      <div class="order-line-info">
-        <div class="order-line-name" title="${escHtml(entry.name)}">${escHtml(entry.name)}</div>
-        ${modList.length > 0 ? `<div class="order-line-mods">${modList.map(escHtml).join(' · ')}</div>` : ''}
-        ${entry.special ? `<div class="order-line-special">📝 ${escHtml(entry.special)}</div>` : ''}
-      </div>
-      <div class="order-line-controls">
-        <div class="order-line-price">$${entry.lineTotal.toFixed(2)}</div>
-        <div class="qty-controls">
-          <button class="qty-btn" onclick="changeQty('${entry.id}', -1)" aria-label="Decrease quantity">−</button>
-          <div class="qty-display">${entry.qty}</div>
-          <button class="qty-btn" onclick="changeQty('${entry.id}', 1)" aria-label="Increase quantity">+</button>
+    return `
+      <div class="order-line" role="listitem" data-entry-id="${entry.id}">
+        <div class="order-line-info">
+          <div class="order-line-name" title="${escHtml(entry.name)}">${escHtml(entry.name)}</div>
+          ${modList.length > 0 ? `<div class="order-line-mods">${modList.map(escHtml).join(' · ')}</div>` : ''}
+          ${entry.special ? `<div class="order-line-special">📝 ${escHtml(entry.special)}</div>` : ''}
         </div>
-        <button class="delete-btn" onclick="removeFromOrder('${entry.id}')" aria-label="Remove ${escHtml(entry.name)} from order">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-        </button>
+        <div class="order-line-controls">
+          <div class="order-line-price">$${entry.lineTotal.toFixed(2)}</div>
+          <div class="qty-controls">
+            <button class="qty-btn" onclick="changeQty('${entry.id}', -1)" aria-label="Decrease quantity">−</button>
+            <div class="qty-display">${entry.qty}</div>
+            <button class="qty-btn" onclick="changeQty('${entry.id}', 1)" aria-label="Increase quantity">+</button>
+          </div>
+          <button class="delete-btn" onclick="removeFromOrder('${entry.id}')" aria-label="Remove ${escHtml(entry.name)} from order">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </div>
       </div>`;
-    container.appendChild(el);
-  });
+  }).join('');
 }
 
 // ===========================
@@ -2963,7 +3046,20 @@ function previewReceipt() {
   const customerName = document.getElementById('customer-name').value.trim();
   const customerPhone = document.getElementById('customer-phone').value.trim();
   const text = generateReceiptText(orderNum, customerName, customerPhone);
+  const totalItems = order.reduce((s, e) => s + e.qty, 0);
+  const subtotal = getSubtotal();
+
   document.getElementById('receipt-preview-content').textContent = text;
+
+  // Populate info bar
+  const rpItems = document.getElementById('rp-item-count');
+  const rpOrder = document.getElementById('rp-order-num');
+  const rpTotal = document.getElementById('rp-total');
+  if (rpItems) rpItems.textContent = totalItems;
+  if (rpOrder) rpOrder.textContent = `#${String(orderNum).padStart(4,'0')}`;
+  if (rpTotal) rpTotal.textContent = `$${subtotal.toFixed(2)}`;
+
+  closeOrderDrawer();
   document.getElementById('receipt-modal').classList.remove('hidden');
 }
 
@@ -3087,7 +3183,11 @@ async function sendToStarPrinter(ip, port, xmlPayload) {
 function browserPrint(receiptText) {
   const el = document.getElementById('print-receipt');
   el.textContent = receiptText;
-  window.print();
+  // Close drawer and restore body overflow before printing
+  closeOrderDrawer();
+  document.body.style.overflow = '';
+  // Small delay to let browser settle before print dialog
+  setTimeout(() => window.print(), 100);
 }
 
 // ===========================
@@ -4146,8 +4246,12 @@ function printZReport() {
 }
 
 function fallbackPrintZ(text) {
-  document.getElementById('z-report-print-frame').textContent = text;
-  window.print();
+  // Reuse print-receipt for Z report print
+  const el = document.getElementById('print-receipt');
+  el.textContent = text;
+  closeOrderDrawer();
+  document.body.style.overflow = '';
+  setTimeout(() => window.print(), 100);
 }
 
 function downloadZReport() {
