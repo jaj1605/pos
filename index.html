@@ -1762,7 +1762,7 @@ body {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             Preview
           </button>
-          <button class="btn btn-primary" onclick="printOrder()" id="print-btn" disabled aria-label="Print receipt">
+          <button class="btn btn-primary" onclick="handlePrintBtn()" id="print-btn" disabled aria-label="Print receipt">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Print
           </button>
@@ -2133,7 +2133,7 @@ body {
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:0;padding:9px 16px;" onclick="closeReceiptModal()">Close</button>
-      <button class="btn btn-primary" style="flex:0;padding:9px 18px;" onclick="printOrder()">
+      <button class="btn btn-primary" style="flex:0;padding:9px 18px;" onclick="handlePrintBtn()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         Confirm &amp; Print
       </button>
@@ -3116,6 +3116,54 @@ function closeReceiptModal() {
 // ===========================
 // PRINT
 // ===========================
+// handlePrintBtn — synchronous entry point called directly by button tap
+// iOS Safari REQUIRES window.print() to be in the direct call stack of a user gesture
+// async functions break this — so Bluetooth mode is handled here synchronously
+function handlePrintBtn() {
+  if (order.length === 0) return;
+  const mode = settings.printerMode || 'lan';
+  if (mode === 'webprnt') {
+    closeReceiptModal();
+    const orderNum = getOrderNum();
+    const customerName = document.getElementById('customer-name').value.trim();
+    const customerPhone = document.getElementById('customer-phone').value.trim();
+    const receiptText = generateReceiptText(orderNum, customerName, customerPhone);
+    const xmlPayload = buildWebPRNTPayload(receiptText, true);
+    const port = settings.printerPort || '8080';
+    const url = `http://localhost:${port}/StarWebPRNT/SendMessage`;
+
+    // Use XMLHttpRequest (synchronous-style) so it works inside Star webPRNT Browser
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.timeout = 8000;
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        showToast('✅ Sent to printer', 'success');
+      } else {
+        showToast('Printer error — check connection', 'error');
+      }
+    };
+    xhr.onerror = () => showToast('Cannot reach printer — make sure you are inside Star webPRNT Browser', 'error');
+    xhr.ontimeout = () => showToast('Printer timed out', 'error');
+    xhr.send(JSON.stringify({ requestContents: xmlPayload }));
+
+    // Save & clear order immediately
+    saveOrderToHistory(orderNum, order, getSubtotal(), customerName, customerPhone);
+    incrementOrderNum();
+    order = [];
+    document.getElementById('customer-name').value = '';
+    document.getElementById('customer-phone').value = '';
+    closeOrderDrawer();
+    renderOrder();
+    updateOrderNumBadge();
+  } else {
+    // LAN mode — use async flow
+    closeReceiptModal();
+    printOrder();
+  }
+}
+
 async function printOrder() {
   if (order.length === 0) return;
   closeReceiptModal();
@@ -3270,7 +3318,39 @@ async function testPrint() {
       '----------------------------------------',
       ''
     ].join('\n');
-    browserPrint(testText);
+    // Send test via XHR to Star webPRNT Browser's local server
+    const xml = buildWebPRNTPayload(testText, false);
+    const port = document.getElementById('s-printer-port-bt').value.trim() || '8080';
+    const url = `http://localhost:${port}/StarWebPRNT/SendMessage`;
+    const dot = document.getElementById('printer-dot');
+    const statusText = document.getElementById('printer-status-text');
+    dot.className = 'printer-dot testing';
+    statusText.textContent = 'Sending test page…';
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.timeout = 8000;
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        dot.className = 'printer-dot ok';
+        statusText.textContent = 'Connected — printer responded!';
+        showToast('✅ Test print sent!', 'success');
+      } else {
+        dot.className = 'printer-dot error';
+        statusText.textContent = 'Printer error — open inside Star webPRNT Browser';
+        showToast('Printer error', 'error');
+      }
+    };
+    xhr.onerror = () => {
+      dot.className = 'printer-dot error';
+      statusText.textContent = 'Cannot reach printer — open POS inside Star webPRNT Browser app';
+      showToast('Open POS inside Star webPRNT Browser app', 'error');
+    };
+    xhr.ontimeout = () => {
+      dot.className = 'printer-dot error';
+      statusText.textContent = 'Timed out — open POS inside Star webPRNT Browser app';
+    };
+    xhr.send(JSON.stringify({ requestContents: xml }));
     return;
   }
 
