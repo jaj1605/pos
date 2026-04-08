@@ -1869,17 +1869,18 @@ body {
             <div style="background:var(--accent-light);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:0.78rem;">
               <div style="font-weight:700;color:var(--accent);margin-bottom:6px;">Setup Instructions</div>
               <ol style="padding-left:16px;color:var(--text-muted);line-height:1.8;">
-                <li>Pair your TSP100IIIBI via iPhone <strong>Settings → Bluetooth</strong></li>
-                <li>Open your POS in <strong>Safari</strong> on your iPhone</li>
-                <li>When you tap <strong>Print</strong>, Safari’s print dialog opens</li>
-                <li>Select <strong>TSP100</strong> from the printer list</li>
-                <li>Tap <strong>Print</strong> — it prints via AirPrint over Bluetooth</li>
+                <li>Pair TSP100IIIBI via iPhone <strong>Settings → Bluetooth</strong></li>
+                <li>Open iPhone <strong>Settings → Star webPRNT</strong></li>
+                <li>Set <strong>PRINTER</strong> to your TSP100 model</li>
+                <li>Set <strong>PORT NAME</strong> → turn off "Use Default" → enter <strong>BT:TSP100</strong></li>
+                <li>Open <strong>Star webPRNT Browser</strong> app → navigate to your POS URL</li>
+                <li>Tap <strong>Test Print</strong> below to verify connection</li>
               </ol>
             </div>
             <p class="text-muted" style="font-size:0.75rem;">The Star webPRNT Browser app provides its own local server at <code style="background:var(--bg);padding:1px 5px;border-radius:3px;">localhost:8080</code>. Your POS will use that automatically when this mode is selected.</p>
             <div class="form-group" style="margin-top:10px;">
-              <label class="form-label" for="s-printer-port-bt">App Port (default: 8080)</label>
-              <input class="form-input" id="s-printer-port-bt" type="number" placeholder="8080" value="8080" min="1" max="65535" style="max-width:120px;">
+              <label class="form-label" for="s-printer-port-bt">App Port (default: 8001)</label>
+              <input class="form-input" id="s-printer-port-bt" type="number" placeholder="8001" value="8001" min="1" max="65535" style="max-width:120px;">
             </div>
           </div>
 
@@ -3129,7 +3130,7 @@ function handlePrintBtn() {
     const customerPhone = document.getElementById('customer-phone').value.trim();
     const receiptText = generateReceiptText(orderNum, customerName, customerPhone);
     const xmlPayload = buildWebPRNTPayload(receiptText, true);
-    const port = settings.printerPort || '8080';
+    const port = settings.printerPort || '8001';
     const url = `http://localhost:${port}/StarWebPRNT/SendMessage`;
 
     // Use XMLHttpRequest (synchronous-style) so it works inside Star webPRNT Browser
@@ -3320,7 +3321,7 @@ async function testPrint() {
     ].join('\n');
     // Send test via XHR to Star webPRNT Browser's local server
     const xml = buildWebPRNTPayload(testText, false);
-    const port = document.getElementById('s-printer-port-bt').value.trim() || '8080';
+    const port = document.getElementById('s-printer-port-bt').value.trim() || '8001';
     const url = `http://localhost:${port}/StarWebPRNT/SendMessage`;
     const dot = document.getElementById('printer-dot');
     const statusText = document.getElementById('printer-status-text');
